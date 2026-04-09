@@ -1,0 +1,16 @@
+backend/target/
+frontend/node_modules/
+frontend/dist/
+.idea/
+.vscode/
+*.log
+
+.mysql/
+*.tar.gz
+*.zip
+
+backend/data/mysql-local/
+.mysql/
+*.log
+*.pid
+*.tar.gz
