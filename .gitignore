@@ -4,13 +4,11 @@ frontend/dist/
 .idea/
 .vscode/
 *.log
+.tools/
+backend/data/
+.codex
 
 .mysql/
 *.tar.gz
 *.zip
-
-backend/data/mysql-local/
-.mysql/
-*.log
 *.pid
-*.tar.gz

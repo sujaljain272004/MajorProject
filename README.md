@@ -40,9 +40,9 @@ Result:
 
 ## Backend Setup
 
-1. Make sure MySQL is running.
-2. Create the database with `sql/schema.sql`, or let Spring Boot auto-create/update tables.
-3. Confirm the credentials in [backend/src/main/resources/application.properties](/mnt/c/Users/sujal/OneDrive/Documents/Desktop/MajorProject/backend/src/main/resources/application.properties).
+1. Make sure MySQL is running on `localhost:3306`.
+2. Create the database `major` with [schema.sql](/mnt/c/Users/sujal/OneDrive/Documents/Desktop/MajorProject/sql/schema.sql), or let Spring Boot create/update tables automatically.
+3. Confirm the credentials in [application.properties](/mnt/c/Users/sujal/OneDrive/Documents/Desktop/MajorProject/backend/src/main/resources/application.properties).
 4. Install Maven locally if it is not already installed.
 5. Run the backend:
 
@@ -52,6 +52,11 @@ mvn spring-boot:run
 ```
 
 Backend runs on `http://localhost:8080`.
+
+Default database settings:
+- Database: `major`
+- Username: `root`
+- Password: `#Sujal200427`
 
 Seeded accounts:
 - Owner: `owner@chargeup.com` / `owner123`
@@ -74,6 +79,15 @@ npm run dev
 ```
 
 Frontend runs on `http://localhost:5173`.
+
+## GitHub-Friendly Repo
+
+The repository is set up to exclude local-only files such as:
+- local database files in `backend/data/`
+- local Maven binaries in `.tools/`
+- frontend install/build output such as `frontend/node_modules/` and `frontend/dist/`
+
+That keeps the repo lightweight and safe to push to GitHub.
 
 ## Razorpay Test Configuration
 
