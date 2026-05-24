@@ -1,5 +1,6 @@
 package com.chargeup.dto.slot;
 
+import com.chargeup.entity.SlotState;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -11,6 +12,7 @@ public record SlotResponse(
     LocalDateTime endTime,
     BigDecimal price,
     boolean available,
+    SlotState state,
     Long version
 ) {
 }

@@ -6,6 +6,9 @@ import com.chargeup.entity.Booking;
 import com.chargeup.entity.BookingStatus;
 import com.chargeup.entity.PaymentStatus;
 import com.chargeup.entity.Role;
+import com.chargeup.entity.SlotState;
+import com.chargeup.entity.StationOperatingStatus;
+import com.chargeup.entity.StationVerificationStatus;
 import com.chargeup.exception.BadRequestException;
 import com.chargeup.exception.ResourceNotFoundException;
 import com.chargeup.exception.UnauthorizedException;
@@ -20,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class BookingService {
 
+    private static final long PAYMENT_HOLD_MINUTES = 10;
+    private static final long ARRIVAL_GRACE_MINUTES = 15;
     private final BookingRepository bookingRepository;
     private final SlotRepository slotRepository;
     private final PaymentRepository paymentRepository;
@@ -54,20 +59,37 @@ public class BookingService {
         var slot = slotRepository.findByIdForUpdate(request.slotId())
             .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
 
-        if (!slot.isAvailable()) {
+        if (slot.getStation().getVerificationStatus() != StationVerificationStatus.VERIFIED) {
+            throw new BadRequestException("Station is awaiting verification");
+        }
+        if (slot.getStation().getOperatingStatus() != StationOperatingStatus.ACTIVE) {
+            throw new BadRequestException("Station is not accepting bookings");
+        }
+        if (slot.getState() != SlotState.AVAILABLE || !slot.isAvailable()) {
             throw new BadRequestException("Slot is already booked");
         }
         if (!slot.getStartTime().isAfter(LocalDateTime.now())) {
             throw new BadRequestException("Cannot book a slot that has already started");
         }
 
+        if (bookingRepository.existsByUserIdAndSlotIdAndStatusIn(
+            user.getId(),
+            slot.getId(),
+            List.of(BookingStatus.RESERVED, BookingStatus.BOOKED, BookingStatus.CHARGING)
+        )) {
+            throw new BadRequestException("You already have an active booking for this slot");
+        }
+
         slot.setAvailable(false);
+        slot.setState(SlotState.RESERVED);
         slotRepository.save(slot);
 
         var booking = new Booking();
         booking.setUser(user);
         booking.setSlot(slot);
-        booking.setStatus(BookingStatus.PENDING_PAYMENT);
+        booking.setStatus(BookingStatus.RESERVED);
+        booking.setExpiresAt(LocalDateTime.now().plusMinutes(PAYMENT_HOLD_MINUTES));
+        booking.setArrivalGraceUntil(slot.getStartTime().plusMinutes(ARRIVAL_GRACE_MINUTES));
 
         var saved = bookingRepository.save(booking);
         var detailed = bookingRepository.findDetailedById(saved.getId()).orElse(saved);
@@ -80,12 +102,13 @@ public class BookingService {
     public BookingResponse cancelBooking(Long bookingId) {
         var booking = getOwnedBookingEntity(bookingId);
 
-        if (booking.getStatus() == BookingStatus.CANCELED) {
-            throw new BadRequestException("Booking is already canceled");
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new BadRequestException("Booking is already cancelled");
         }
 
-        booking.setStatus(BookingStatus.CANCELED);
+        booking.setStatus(BookingStatus.CANCELLED);
         booking.getSlot().setAvailable(true);
+        booking.getSlot().setState(SlotState.AVAILABLE);
         slotRepository.save(booking.getSlot());
 
         var payment = paymentRepository.findByBookingId(bookingId).orElse(null);

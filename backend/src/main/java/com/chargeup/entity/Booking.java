@@ -43,6 +43,12 @@ public class Booking {
     @Column
     private String paymentId;
 
+    @Column(nullable = false)
+    private LocalDateTime expiresAt;
+
+    @Column(nullable = false)
+    private LocalDateTime arrivalGraceUntil;
+
     @OneToOne(mappedBy = "booking", fetch = FetchType.LAZY)
     private Payment payment;
 

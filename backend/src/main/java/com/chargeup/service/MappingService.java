@@ -10,6 +10,7 @@ import com.chargeup.entity.Payment;
 import com.chargeup.entity.Slot;
 import com.chargeup.entity.Station;
 import java.math.BigDecimal;
+import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,16 +21,39 @@ public class MappingService {
     }
 
     public StationResponse toStationResponse(Station station, long totalSlots, long availableSlots) {
+        return toStationResponse(station, totalSlots, availableSlots, null, 0);
+    }
+
+    public StationResponse toStationResponse(
+        Station station,
+        long totalSlots,
+        long availableSlots,
+        Double distanceKm,
+        long estimatedWaitMinutes
+    ) {
         return new StationResponse(
             station.getId(),
             station.getName(),
             station.getLocation(),
+            station.getCity(),
+            station.getPincode(),
             station.getLatitude(),
             station.getLongitude(),
+            station.getChargerType(),
+            station.getConnectorType(),
+            station.getChargingSpeedKw(),
+            station.getSlotCount(),
+            station.getPricePerKwh(),
+            station.getOpeningHours(),
+            List.copyOf(station.getPhotoUrls()),
+            station.getVerificationStatus(),
+            station.getOperatingStatus(),
             station.getOwner().getId(),
             station.getOwner().getName(),
             totalSlots,
-            availableSlots
+            availableSlots,
+            distanceKm,
+            estimatedWaitMinutes
         );
     }
 
@@ -42,6 +66,7 @@ public class MappingService {
             slot.getEndTime(),
             slot.getPrice(),
             slot.isAvailable(),
+            slot.getState(),
             slot.getVersion()
         );
     }

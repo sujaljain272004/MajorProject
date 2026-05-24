@@ -4,6 +4,7 @@ import com.chargeup.dto.auth.AuthResponse;
 import com.chargeup.dto.auth.LoginRequest;
 import com.chargeup.dto.auth.RegisterRequest;
 import com.chargeup.exception.BadRequestException;
+import com.chargeup.entity.Role;
 import com.chargeup.repository.UserRepository;
 import com.chargeup.security.JwtService;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -39,6 +40,9 @@ public class AuthService {
         String normalizedEmail = request.email().toLowerCase();
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new BadRequestException("Email is already registered");
+        }
+        if (request.role() == Role.ADMIN) {
+            throw new BadRequestException("Admin accounts must be provisioned by operations");
         }
 
         var user = new com.chargeup.entity.User();

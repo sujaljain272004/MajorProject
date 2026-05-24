@@ -9,9 +9,11 @@ import com.chargeup.dto.payment.PaymentVerifyRequest;
 import com.chargeup.entity.BookingStatus;
 import com.chargeup.entity.Payment;
 import com.chargeup.entity.PaymentStatus;
+import com.chargeup.entity.SlotState;
 import com.chargeup.exception.BadRequestException;
 import com.chargeup.exception.UnauthorizedException;
 import com.chargeup.repository.PaymentRepository;
+import com.chargeup.repository.SlotRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URI;
@@ -34,6 +36,8 @@ public class PaymentService {
     private final RazorpayProperties razorpayProperties;
     private final CurrentUserService currentUserService;
     private final ObjectMapper objectMapper;
+    private final SlotRepository slotRepository;
+    private final SlotBroadcastService slotBroadcastService;
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
     public PaymentService(
@@ -42,7 +46,9 @@ public class PaymentService {
         MappingService mappingService,
         RazorpayProperties razorpayProperties,
         CurrentUserService currentUserService,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        SlotRepository slotRepository,
+        SlotBroadcastService slotBroadcastService
     ) {
         this.paymentRepository = paymentRepository;
         this.bookingService = bookingService;
@@ -50,6 +56,8 @@ public class PaymentService {
         this.razorpayProperties = razorpayProperties;
         this.currentUserService = currentUserService;
         this.objectMapper = objectMapper;
+        this.slotRepository = slotRepository;
+        this.slotBroadcastService = slotBroadcastService;
     }
 
     @Transactional
@@ -57,11 +65,14 @@ public class PaymentService {
         var booking = bookingService.getOwnedBookingEntity(request.bookingId());
         ensureBookingOwner(booking);
 
-        if (booking.getStatus() == BookingStatus.CANCELED) {
-            throw new BadRequestException("Cannot pay for a canceled booking");
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new BadRequestException("Cannot pay for a cancelled booking");
         }
-        if (booking.getStatus() == BookingStatus.CONFIRMED) {
+        if (booking.getStatus() != BookingStatus.RESERVED) {
             throw new BadRequestException("Booking is already paid");
+        }
+        if (booking.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+            throw new BadRequestException("Booking payment hold has expired");
         }
 
         BigDecimal amount = mappingService.slotPrice(booking);
@@ -112,10 +123,31 @@ public class PaymentService {
         payment.setRazorpaySignature(request.razorpaySignature());
         payment.setStatus(PaymentStatus.PAID);
 
-        booking.setStatus(BookingStatus.CONFIRMED);
-        booking.setPaymentId(request.razorpayPaymentId());
+        var slot = slotRepository.findByIdForUpdate(booking.getSlot().getId())
+            .orElseThrow(() -> new BadRequestException("Reserved slot is no longer available"));
+        if (booking.getStatus() != BookingStatus.RESERVED
+            || booking.getExpiresAt().isBefore(java.time.LocalDateTime.now())
+            || slot.getState() != SlotState.RESERVED) {
+            payment.setStatus(PaymentStatus.REFUND_PENDING);
+            booking.setStatus(BookingStatus.CANCELLED);
+            if (slot.getState() == SlotState.RESERVED) {
+                slot.setState(SlotState.AVAILABLE);
+                slot.setAvailable(true);
+                slotRepository.save(slot);
+                slotBroadcastService.publishStationSlots(slot.getStation().getId());
+            }
+            return mappingService.toPaymentResponse(paymentRepository.save(payment));
+        }
 
-        return mappingService.toPaymentResponse(paymentRepository.save(payment));
+        booking.setStatus(BookingStatus.BOOKED);
+        booking.setPaymentId(request.razorpayPaymentId());
+        slot.setState(SlotState.BOOKED);
+        slot.setAvailable(false);
+        slotRepository.save(slot);
+
+        var response = mappingService.toPaymentResponse(paymentRepository.save(payment));
+        slotBroadcastService.publishStationSlots(slot.getStation().getId());
+        return response;
     }
 
     @Transactional(readOnly = true)

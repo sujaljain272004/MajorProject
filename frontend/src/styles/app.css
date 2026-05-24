@@ -26,6 +26,7 @@ a {
 
 button,
 input,
+textarea,
 select {
   font: inherit;
 }
@@ -362,11 +363,112 @@ button {
 }
 
 .form-grid input,
+.form-grid textarea,
 .form-grid select {
   border: 1px solid #cbd5e1;
   border-radius: 14px;
   padding: 12px 14px;
   background: #ffffff;
+}
+
+.nearby-controls {
+  display: grid;
+  gap: 18px;
+}
+
+.search-row,
+.filter-grid {
+  display: grid;
+  gap: 14px;
+  align-items: end;
+}
+
+.search-row {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.filter-grid {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.search-row label,
+.filter-grid label {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.search-row input,
+.filter-grid input,
+.filter-grid select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #ffffff;
+}
+
+.filter-grid .check-control {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-grid .check-control input {
+  width: auto;
+}
+
+.station-tags,
+.map-result-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.station-tags span,
+.map-result-strip a {
+  border-radius: 14px;
+  padding: 8px 10px;
+  background: #eef6ff;
+  color: #1e3a5f;
+}
+
+.map-result-strip a {
+  display: grid;
+  min-width: 138px;
+}
+
+.map-result-strip span {
+  color: #56657d;
+}
+
+.station-map-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.osm-frame {
+  width: 100%;
+  min-height: 330px;
+  border: 1px solid #cbd5e1;
+  border-radius: 18px;
+}
+
+.pin-preview {
+  min-height: 240px;
+}
+
+.map-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+}
+
+.retry-button {
+  margin: 12px auto 0;
+  display: block;
 }
 
 .error-banner,
