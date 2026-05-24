@@ -1,6 +1,7 @@
 package com.chargeup.entity;
 
-public enum BookingStatus {
+public enum SlotState {
+    AVAILABLE,
     RESERVED,
     BOOKED,
     CHARGING,

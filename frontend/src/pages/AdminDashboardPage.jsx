@@ -2,18 +2,30 @@ import { useEffect, useState } from "react";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { getOwnerBookings } from "../services/bookingService";
 import { createSlot, deleteSlot, getSlotsByStation, updateSlot } from "../services/slotService";
+import StationPinPreview from "../components/StationPinPreview";
 import {
   createStation,
   deleteStation,
   getOwnerDashboard,
+  setStationStatus,
+  uploadStationPhoto,
   updateStation
 } from "../services/stationService";
 
 const initialStationForm = {
   name: "",
   location: "",
+  city: "",
+  pincode: "",
   latitude: "",
-  longitude: ""
+  longitude: "",
+  chargerType: "DC Fast",
+  chargingSpeedKw: "",
+  connectorType: "CCS2",
+  slotCount: "",
+  pricePerKwh: "",
+  openingHours: "24 hours",
+  photoUrls: []
 };
 
 const initialSlotForm = {
@@ -37,6 +49,7 @@ export default function AdminDashboardPage() {
   const [selectedStationId, setSelectedStationId] = useState(null);
   const [selectedStationSlots, setSelectedStationSlots] = useState([]);
   const [stationForm, setStationForm] = useState(initialStationForm);
+  const [stationPhoto, setStationPhoto] = useState(null);
   const [slotForm, setSlotForm] = useState(initialSlotForm);
   const [editingStationId, setEditingStationId] = useState(null);
   const [editingSlotId, setEditingSlotId] = useState(null);
@@ -45,7 +58,7 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const loadDashboard = async () => {
+  const loadDashboard = async (preferredStationId = selectedStationId) => {
     try {
       setLoading(true);
       const [dashboardData, bookingData] = await Promise.all([
@@ -55,7 +68,7 @@ export default function AdminDashboardPage() {
       setDashboard(dashboardData);
       setOwnerBookings(bookingData);
 
-      const nextStationId = selectedStationId || dashboardData.stations[0]?.id || null;
+      const nextStationId = preferredStationId || dashboardData.stations[0]?.id || null;
       setSelectedStationId(nextStationId);
 
       if (nextStationId) {
@@ -96,6 +109,7 @@ export default function AdminDashboardPage() {
 
   const resetStationForm = () => {
     setStationForm(initialStationForm);
+    setStationPhoto(null);
     setEditingStationId(null);
   };
 
@@ -112,19 +126,29 @@ export default function AdminDashboardPage() {
       const payload = {
         ...stationForm,
         latitude: Number(stationForm.latitude),
-        longitude: Number(stationForm.longitude)
+        longitude: Number(stationForm.longitude),
+        chargingSpeedKw: Number(stationForm.chargingSpeedKw),
+        slotCount: Number(stationForm.slotCount),
+        pricePerKwh: Number(stationForm.pricePerKwh)
       };
+      let savedStation;
 
       if (editingStationId) {
-        await updateStation(editingStationId, payload);
+        savedStation = await updateStation(editingStationId, payload);
         setSuccess("Station updated.");
       } else {
-        await createStation(payload);
-        setSuccess("Station created.");
+        savedStation = await createStation(payload);
+        setSuccess(savedStation.verificationStatus === "VERIFIED"
+          ? "Station is live and starter slots are ready for nearby drivers."
+          : "Station submitted for admin verification.");
+      }
+
+      if (stationPhoto) {
+        await uploadStationPhoto(savedStation.id, stationPhoto);
       }
 
       resetStationForm();
-      await loadDashboard();
+      await loadDashboard(savedStation.id);
     } catch (err) {
       setError(err.response?.data?.message || "Unable to save station");
     } finally {
@@ -169,9 +193,37 @@ export default function AdminDashboardPage() {
     setStationForm({
       name: station.name,
       location: station.location,
+      city: station.city,
+      pincode: station.pincode,
       latitude: station.latitude,
-      longitude: station.longitude
+      longitude: station.longitude,
+      chargerType: station.chargerType,
+      chargingSpeedKw: station.chargingSpeedKw,
+      connectorType: station.connectorType,
+      slotCount: station.slotCount,
+      pricePerKwh: station.pricePerKwh,
+      openingHours: station.openingHours,
+      photoUrls: station.photoUrls || []
     });
+  };
+
+  const handlePinCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setError("Geolocation is unavailable in this browser");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setStationForm((current) => ({
+          ...current,
+          latitude: coords.latitude.toFixed(6),
+          longitude: coords.longitude.toFixed(6)
+        }));
+        setError("");
+      },
+      () => setError("Location permission is required to pin from this device"),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const handleEditSlot = (slot) => {
@@ -201,6 +253,17 @@ export default function AdminDashboardPage() {
       await loadDashboard();
     } catch (err) {
       setError(err.response?.data?.message || "Unable to delete slot");
+    }
+  };
+
+  const handleStationStatus = async (station) => {
+    try {
+      const nextStatus = station.operatingStatus === "PAUSED" ? "ACTIVE" : "PAUSED";
+      await setStationStatus(station.id, nextStatus);
+      setSuccess(nextStatus === "ACTIVE" ? "Station resumed." : "Station paused.");
+      await loadDashboard(station.id);
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to update station status");
     }
   };
 
@@ -269,6 +332,22 @@ export default function AdminDashboardPage() {
               />
             </label>
             <label>
+              City
+              <input
+                required
+                value={stationForm.city}
+                onChange={(event) => setStationForm((current) => ({ ...current, city: event.target.value }))}
+              />
+            </label>
+            <label>
+              Pincode
+              <input
+                required
+                value={stationForm.pincode}
+                onChange={(event) => setStationForm((current) => ({ ...current, pincode: event.target.value }))}
+              />
+            </label>
+            <label>
               Latitude
               <input
                 required
@@ -286,6 +365,74 @@ export default function AdminDashboardPage() {
                 step="0.0001"
                 value={stationForm.longitude}
                 onChange={(event) => setStationForm((current) => ({ ...current, longitude: event.target.value }))}
+              />
+            </label>
+            <button className="secondary-button" onClick={handlePinCurrentLocation} type="button">
+              Pin Device Location
+            </button>
+            <StationPinPreview latitude={stationForm.latitude} longitude={stationForm.longitude} />
+            <label>
+              Charger Type
+              <input
+                required
+                value={stationForm.chargerType}
+                onChange={(event) => setStationForm((current) => ({ ...current, chargerType: event.target.value }))}
+              />
+            </label>
+            <label>
+              Connector Type
+              <input
+                required
+                value={stationForm.connectorType}
+                onChange={(event) => setStationForm((current) => ({ ...current, connectorType: event.target.value }))}
+              />
+            </label>
+            <label>
+              Charging Speed (kW)
+              <input
+                required
+                min="1"
+                type="number"
+                step="0.01"
+                value={stationForm.chargingSpeedKw}
+                onChange={(event) => setStationForm((current) => ({ ...current, chargingSpeedKw: event.target.value }))}
+              />
+            </label>
+            <label>
+              Number of Slots
+              <input
+                required
+                min="1"
+                type="number"
+                value={stationForm.slotCount}
+                onChange={(event) => setStationForm((current) => ({ ...current, slotCount: event.target.value }))}
+              />
+            </label>
+            <label>
+              Dynamic Price (INR/kWh)
+              <input
+                required
+                min="1"
+                type="number"
+                step="0.01"
+                value={stationForm.pricePerKwh}
+                onChange={(event) => setStationForm((current) => ({ ...current, pricePerKwh: event.target.value }))}
+              />
+            </label>
+            <label>
+              Opening Hours
+              <input
+                required
+                value={stationForm.openingHours}
+                onChange={(event) => setStationForm((current) => ({ ...current, openingHours: event.target.value }))}
+              />
+            </label>
+            <label>
+              Station Photo
+              <input
+                accept="image/jpeg,image/png,image/webp"
+                type="file"
+                onChange={(event) => setStationPhoto(event.target.files?.[0] || null)}
               />
             </label>
             <button className="primary-button" disabled={saving} type="submit">
@@ -307,6 +454,7 @@ export default function AdminDashboardPage() {
                   <strong>{station.name}</strong>
                   <span>{station.location}</span>
                   <span>{station.availableSlots}/{station.totalSlots} available</span>
+                  <span>{station.verificationStatus} / {station.operatingStatus}</span>
                 </button>
                 <div className="row-actions">
                   <button className="secondary-button" onClick={() => handleEditStation(station)}>
@@ -314,6 +462,9 @@ export default function AdminDashboardPage() {
                   </button>
                   <button className="ghost-button" onClick={() => handleDeleteStation(station.id)}>
                     Delete
+                  </button>
+                  <button className="ghost-button" onClick={() => handleStationStatus(station)}>
+                    {station.operatingStatus === "PAUSED" ? "Resume" : "Pause"}
                   </button>
                 </div>
               </article>

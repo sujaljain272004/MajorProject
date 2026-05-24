@@ -15,7 +15,7 @@ export default function SlotGrid({ slots, showBookingAction = true }) {
         <article className={`slot-card ${slot.available ? "available" : "booked"}`} key={slot.id}>
           <div className="slot-card-top">
             <span className={`status-pill ${slot.available ? "success" : "danger"}`}>
-              {slot.available ? "Available" : "Booked"}
+              {slot.state || (slot.available ? "AVAILABLE" : "BOOKED")}
             </span>
             <strong>INR {slot.price}</strong>
           </div>

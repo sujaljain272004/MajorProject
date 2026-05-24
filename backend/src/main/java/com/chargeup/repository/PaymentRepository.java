@@ -14,7 +14,11 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     @Query("""
         select coalesce(sum(p.amount), 0) from Payment p
-        where p.status = :status and p.booking.status = com.chargeup.entity.BookingStatus.CONFIRMED
+        where p.status = :status and p.booking.status in (
+            com.chargeup.entity.BookingStatus.BOOKED,
+            com.chargeup.entity.BookingStatus.CHARGING,
+            com.chargeup.entity.BookingStatus.COMPLETED
+        )
         and p.booking.slot.station.owner.id = :ownerId
         """)
     BigDecimal sumRevenueByOwnerIdAndStatus(@Param("ownerId") Long ownerId, @Param("status") PaymentStatus status);

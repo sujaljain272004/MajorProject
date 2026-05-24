@@ -2,6 +2,8 @@ package com.chargeup.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -42,6 +44,10 @@ public class Slot {
 
     @Column(nullable = false)
     private boolean available = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private SlotState state = SlotState.AVAILABLE;
 
     @Version
     private Long version;

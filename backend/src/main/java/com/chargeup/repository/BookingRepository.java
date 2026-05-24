@@ -2,6 +2,7 @@ package com.chargeup.repository;
 
 import com.chargeup.entity.Booking;
 import com.chargeup.entity.BookingStatus;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -46,4 +47,24 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long countBySlotStationOwnerIdAndStatus(Long ownerId, BookingStatus status);
 
     boolean existsBySlotId(Long slotId);
+
+    boolean existsByUserIdAndSlotIdAndStatusIn(Long userId, Long slotId, List<BookingStatus> statuses);
+
+    @Query("""
+        select b from Booking b
+        join fetch b.slot s
+        join fetch s.station st
+        where b.status = com.chargeup.entity.BookingStatus.RESERVED
+          and b.expiresAt <= :now
+        """)
+    List<Booking> findExpiredReservations(@Param("now") LocalDateTime now);
+
+    @Query("""
+        select b from Booking b
+        join fetch b.slot s
+        join fetch s.station st
+        where b.status = com.chargeup.entity.BookingStatus.BOOKED
+          and b.arrivalGraceUntil <= :now
+        """)
+    List<Booking> findMissedArrivals(@Param("now") LocalDateTime now);
 }

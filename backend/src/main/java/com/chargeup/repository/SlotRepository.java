@@ -1,6 +1,7 @@
 package com.chargeup.repository;
 
 import com.chargeup.entity.Slot;
+import com.chargeup.entity.SlotState;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,4 +24,6 @@ public interface SlotRepository extends JpaRepository<Slot, Long> {
     long countByStationOwnerIdAndAvailableTrue(Long ownerId);
 
     boolean existsByStationIdAndStartTimeAndEndTime(Long stationId, LocalDateTime startTime, LocalDateTime endTime);
+
+    long countByStationIdAndState(Long stationId, SlotState state);
 }

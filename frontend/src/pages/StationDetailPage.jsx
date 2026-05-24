@@ -66,10 +66,20 @@ export default function StationDetailPage() {
         <div className="detail-panel">
           <h2>Live Availability</h2>
           <div className="info-list">
-            <p>Open slots update instantly over WebSocket.</p>
+            <p>{station.connectorType} connector, {station.chargerType}</p>
+            <p>{station.chargingSpeedKw} kW charging, INR {station.pricePerKwh}/kWh</p>
+            <p>Open {station.openingHours}</p>
             <p>Total configured slots: {station.totalSlots}</p>
             <p>Current free slots: {slots.filter((slot) => slot.available).length}</p>
           </div>
+          <a
+            className="secondary-button full-width"
+            href={`https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Start Navigation
+          </a>
         </div>
       </div>
 

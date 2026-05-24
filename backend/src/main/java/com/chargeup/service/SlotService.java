@@ -4,6 +4,7 @@ import com.chargeup.dto.slot.SlotRequest;
 import com.chargeup.dto.slot.SlotResponse;
 import com.chargeup.entity.Role;
 import com.chargeup.entity.Slot;
+import com.chargeup.entity.SlotState;
 import com.chargeup.exception.BadRequestException;
 import com.chargeup.exception.ResourceNotFoundException;
 import com.chargeup.exception.UnauthorizedException;
@@ -38,7 +39,7 @@ public class SlotService {
 
     @Transactional(readOnly = true)
     public List<SlotResponse> getSlotsForStation(Long stationId) {
-        stationService.findStation(stationId);
+        stationService.getStation(stationId);
         return slotRepository.findByStationIdOrderByStartTimeAsc(stationId).stream()
             .map(mappingService::toSlotResponse)
             .toList();
@@ -65,6 +66,7 @@ public class SlotService {
         slot.setEndTime(request.endTime());
         slot.setPrice(request.price());
         slot.setAvailable(true);
+        slot.setState(SlotState.AVAILABLE);
         return mappingService.toSlotResponse(slotRepository.save(slot));
     }
 

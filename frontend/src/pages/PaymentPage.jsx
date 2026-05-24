@@ -158,8 +158,8 @@ export default function PaymentPage() {
         </div>
       </article>
 
-      <button className="primary-button fit-button" disabled={paying || booking.status === "CONFIRMED"} onClick={handlePayment}>
-        {paying ? "Launching Razorpay..." : booking.status === "CONFIRMED" ? "Already Paid" : "Pay with Razorpay"}
+      <button className="primary-button fit-button" disabled={paying || booking.status !== "RESERVED"} onClick={handlePayment}>
+        {paying ? "Launching Razorpay..." : booking.status === "RESERVED" ? "Pay with Razorpay" : "Payment Closed"}
       </button>
     </section>
   );

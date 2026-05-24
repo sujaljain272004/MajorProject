@@ -2,7 +2,9 @@ package com.chargeup.config;
 
 import com.chargeup.entity.Role;
 import com.chargeup.entity.Slot;
+import com.chargeup.entity.SlotState;
 import com.chargeup.entity.Station;
+import com.chargeup.entity.StationVerificationStatus;
 import com.chargeup.entity.User;
 import com.chargeup.repository.SlotRepository;
 import com.chargeup.repository.StationRepository;
@@ -43,19 +45,32 @@ public class DataInitializer {
             driver.setRole(Role.DRIVER);
             userRepository.save(driver);
 
+            User admin = new User();
+            admin.setName("ChargeUp Admin");
+            admin.setEmail("admin@chargeup.com");
+            admin.setPassword(passwordEncoder.encode("admin123"));
+            admin.setRole(Role.ADMIN);
+            userRepository.save(admin);
+
             Station stationOne = new Station();
             stationOne.setName("ChargeUp Downtown Hub");
             stationOne.setLocation("MG Road, Bengaluru");
+            stationOne.setCity("Bengaluru");
+            stationOne.setPincode("560001");
             stationOne.setLatitude(12.9716);
             stationOne.setLongitude(77.5946);
+            setStationOperations(stationOne, "DC Fast", "CCS2", "60.00", 4, "18.50", "24 hours");
             stationOne.setOwner(owner);
             stationOne = stationRepository.save(stationOne);
 
             Station stationTwo = new Station();
             stationTwo.setName("ChargeUp Tech Park");
             stationTwo.setLocation("Whitefield, Bengaluru");
+            stationTwo.setCity("Bengaluru");
+            stationTwo.setPincode("560066");
             stationTwo.setLatitude(12.9698);
             stationTwo.setLongitude(77.7500);
+            setStationOperations(stationTwo, "AC + DC", "Type 2, CCS2", "120.00", 6, "21.00", "06:00-23:00");
             stationTwo.setOwner(owner);
             stationTwo = stationRepository.save(stationTwo);
 
@@ -74,6 +89,25 @@ public class DataInitializer {
         slot.setEndTime(start.plusHours(1));
         slot.setPrice(new BigDecimal(price));
         slot.setAvailable(true);
+        slot.setState(SlotState.AVAILABLE);
         slotRepository.save(slot);
+    }
+
+    private void setStationOperations(
+        Station station,
+        String chargerType,
+        String connectorType,
+        String speedKw,
+        int slotCount,
+        String pricePerKwh,
+        String openingHours
+    ) {
+        station.setChargerType(chargerType);
+        station.setConnectorType(connectorType);
+        station.setChargingSpeedKw(new BigDecimal(speedKw));
+        station.setSlotCount(slotCount);
+        station.setPricePerKwh(new BigDecimal(pricePerKwh));
+        station.setOpeningHours(openingHours);
+        station.setVerificationStatus(StationVerificationStatus.VERIFIED);
     }
 }

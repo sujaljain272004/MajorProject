@@ -32,7 +32,21 @@ Request:
 ## Stations
 
 ### GET `/stations`
-List all charging stations with slot counts.
+Owner/admin network list of active verified public stations with slot counts. Driver clients use nearby search.
+
+### GET `/stations/nearby`
+Driver discovery endpoint. Provide live GPS coordinates or a city/pincode fallback.
+
+Query examples:
+```text
+/stations/nearby?latitude=12.9716&longitude=77.5946&radiusKm=10&availableOnly=true
+/stations/nearby?city=Bengaluru&pincode=560001&connectorType=CCS2&fastCharging=true&maxPrice=25
+```
+
+Notes:
+- Radius is restricted to 5, 10, or 25 km.
+- GPS searches calculate distance with Haversine and sort nearest first.
+- Results exclude paused, pending, and rejected stations.
 
 ### GET `/stations/{stationId}`
 Get one station.
@@ -49,10 +63,29 @@ Owner-only create station.
 {
   "name": "ChargeUp Plaza",
   "location": "Indiranagar, Bengaluru",
+  "city": "Bengaluru",
+  "pincode": "560038",
   "latitude": 12.9784,
-  "longitude": 77.6408
+  "longitude": 77.6408,
+  "chargerType": "DC Fast",
+  "connectorType": "CCS2",
+  "chargingSpeedKw": 120,
+  "slotCount": 6,
+  "pricePerKwh": 21.50,
+  "openingHours": "24 hours"
 }
 ```
+
+New and materially edited stations become `PENDING` until admin verification.
+
+### POST `/stations/{stationId}/photos`
+Owner-only multipart station photo upload. Use `file` with JPEG, PNG, or WebP up to 5MB.
+
+### POST `/stations/{stationId}/status?status=PAUSED`
+Owner-only pause or resume with `PAUSED` or `ACTIVE`.
+
+### POST `/stations/{stationId}/verification?verified=true`
+Admin-only station verification decision.
 
 ### PUT `/stations/{stationId}`
 Owner-only update station.
@@ -96,7 +129,10 @@ Driver-only create booking.
 
 Concurrency note:
 - Booking uses a pessimistic row lock on the slot record.
-- If two requests hit the same slot, only one transaction can mark it unavailable and create the booking.
+- If two requests hit the same slot, only one transaction can reserve it.
+- Booking creation moves a slot from `AVAILABLE` to `RESERVED` for a 10-minute payment hold.
+- Verified payment moves the booking and slot to `BOOKED`.
+- A scheduled lifecycle job releases expired reservations and paid bookings that miss the arrival grace period.
 
 ### POST `/bookings/{bookingId}/cancel`
 Cancel booking and free the slot.
@@ -143,4 +179,5 @@ Topic subscription:
 
 Payload:
 - Array of slot DTOs for the station.
-- Frontend uses this to disable booked slots instantly.
+- Slot state is one of `AVAILABLE`, `RESERVED`, `BOOKED`, `CHARGING`, `COMPLETED`, `CANCELLED`.
+- Frontend uses this to disable unavailable slots instantly.

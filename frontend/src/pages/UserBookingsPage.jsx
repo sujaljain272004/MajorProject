@@ -79,12 +79,12 @@ export default function UserBookingsPage() {
                   <td>{booking.status}</td>
                   <td>{booking.paymentStatus || "NOT_STARTED"}</td>
                   <td className="table-actions">
-                    {booking.status === "PENDING_PAYMENT" && (
+                    {booking.status === "RESERVED" && (
                       <button className="secondary-button" onClick={() => navigate(`/payment/${booking.id}`)}>
                         Pay Now
                       </button>
                     )}
-                    {booking.status !== "CANCELED" && (
+                    {booking.status !== "CANCELLED" && booking.status !== "COMPLETED" && (
                       <button className="ghost-button" onClick={() => handleCancel(booking.id)}>
                         Cancel
                       </button>
