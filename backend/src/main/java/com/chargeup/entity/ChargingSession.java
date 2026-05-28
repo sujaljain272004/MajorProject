@@ -9,11 +9,10 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Getter;
@@ -22,41 +21,35 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "slots")
-public class Slot {
+@Table(name = "charging_sessions")
+public class ChargingSession {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "station_id", nullable = false)
-    private Station station;
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "booking_id", nullable = false, unique = true)
+    private Booking booking;
+
+    @Column
+    private Long chargerId;
 
     @Column(nullable = false)
     private LocalDateTime startTime;
 
-    @Column(nullable = false)
+    @Column
     private LocalDateTime endTime;
 
     @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal price;
+    private BigDecimal energyConsumed = BigDecimal.ZERO;
 
     @Column(nullable = false)
-    private boolean available = true;
+    private Long chargingDurationMinutes = 0L;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private SlotState state = SlotState.AVAILABLE;
-
-    @Version
-    private Long version;
-
-    @Column(name = "reserved_by")
-    private Long reservedBy;
-
-    @Column(name = "reservation_expiry")
-    private LocalDateTime reservationExpiry;
+    private ChargingStatus chargingStatus = ChargingStatus.READY;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

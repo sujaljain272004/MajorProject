@@ -22,6 +22,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Service;
@@ -65,8 +66,8 @@ public class PaymentService {
         var booking = bookingService.getOwnedBookingEntity(request.bookingId());
         ensureBookingOwner(booking);
 
-        if (booking.getStatus() == BookingStatus.CANCELLED) {
-            throw new BadRequestException("Cannot pay for a cancelled booking");
+        if (List.of(BookingStatus.CANCELLED, BookingStatus.EXPIRED, BookingStatus.FAILED).contains(booking.getStatus())) {
+            throw new BadRequestException("Cannot pay for an inactive booking");
         }
         if (booking.getStatus() != BookingStatus.RESERVED) {
             throw new BadRequestException("Booking is already paid");
@@ -133,6 +134,8 @@ public class PaymentService {
             if (slot.getState() == SlotState.RESERVED) {
                 slot.setState(SlotState.AVAILABLE);
                 slot.setAvailable(true);
+                slot.setReservedBy(null);
+                slot.setReservationExpiry(null);
                 slotRepository.save(slot);
                 slotBroadcastService.publishStationSlots(slot.getStation().getId());
             }
@@ -141,6 +144,7 @@ public class PaymentService {
 
         booking.setStatus(BookingStatus.BOOKED);
         booking.setPaymentId(request.razorpayPaymentId());
+        booking.setTotalAmount(payment.getAmount());
         slot.setState(SlotState.BOOKED);
         slot.setAvailable(false);
         slotRepository.save(slot);
@@ -158,6 +162,43 @@ public class PaymentService {
             paymentRepository.findByBookingId(bookingId)
                 .orElseThrow(() -> new BadRequestException("Payment not found"))
         );
+    }
+
+    @Transactional
+    public PaymentResponse mockPaymentSuccess(Long bookingId) {
+        var booking = bookingService.getOwnedBookingEntity(bookingId);
+        ensureBookingOwner(booking);
+        if (booking.getStatus() != BookingStatus.RESERVED) {
+            throw new BadRequestException("Only reserved bookings can be marked paid");
+        }
+
+        var slot = slotRepository.findByIdForUpdate(booking.getSlot().getId())
+            .orElseThrow(() -> new BadRequestException("Reserved slot is no longer available"));
+        if (slot.getState() != SlotState.RESERVED) {
+            throw new BadRequestException("Reserved slot is no longer available");
+        }
+
+        BigDecimal amount = mappingService.slotPrice(booking);
+        Payment payment = paymentRepository.findByBookingId(bookingId).orElseGet(() -> {
+            var created = new Payment();
+            created.setBooking(booking);
+            return created;
+        });
+        payment.setAmount(amount);
+        payment.setStatus(PaymentStatus.PAID);
+        payment.setRazorpayOrderId("mock_order_" + bookingId);
+        payment.setRazorpayPaymentId("mock_payment_" + bookingId);
+
+        booking.setStatus(BookingStatus.BOOKED);
+        booking.setPaymentId(payment.getRazorpayPaymentId());
+        booking.setTotalAmount(amount);
+        slot.setState(SlotState.BOOKED);
+        slot.setAvailable(false);
+        slotRepository.save(slot);
+
+        var response = mappingService.toPaymentResponse(paymentRepository.save(payment));
+        slotBroadcastService.publishStationSlots(slot.getStation().getId());
+        return response;
     }
 
     private void ensureBookingOwner(com.chargeup.entity.Booking booking) {

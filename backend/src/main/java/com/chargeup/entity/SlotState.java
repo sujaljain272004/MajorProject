@@ -4,7 +4,10 @@ public enum SlotState {
     AVAILABLE,
     RESERVED,
     BOOKED,
+    ARRIVED,
     CHARGING,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    EXPIRED,
+    FAILED
 }

@@ -14,3 +14,8 @@ export const getBookingPayment = async (bookingId) => {
   const { data } = await api.get(`/payments/booking/${bookingId}`);
   return data;
 };
+
+export const mockPaymentSuccess = async (bookingId) => {
+  const { data } = await api.post(`/payments/booking/${bookingId}/mock-success`);
+  return data;
+};

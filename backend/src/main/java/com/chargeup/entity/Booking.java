@@ -15,6 +15,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -42,6 +43,33 @@ public class Booking {
 
     @Column
     private String paymentId;
+
+    @Column
+    private Long vehicleId;
+
+    @Column
+    private LocalDateTime actualArrivalTime;
+
+    @Column
+    private LocalDateTime chargingStartTime;
+
+    @Column
+    private LocalDateTime chargingEndTime;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal totalAmount = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal overtimeAmount = BigDecimal.ZERO;
+
+    @Column(nullable = false)
+    private boolean qrCheckinVerified = false;
+
+    @Column
+    private Boolean extensionRequested;
+
+    @Column
+    private Boolean extensionApproved;
 
     @Column(nullable = false)
     private LocalDateTime expiresAt;

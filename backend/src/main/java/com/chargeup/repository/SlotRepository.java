@@ -26,4 +26,6 @@ public interface SlotRepository extends JpaRepository<Slot, Long> {
     boolean existsByStationIdAndStartTimeAndEndTime(Long stationId, LocalDateTime startTime, LocalDateTime endTime);
 
     long countByStationIdAndState(Long stationId, SlotState state);
+
+    List<Slot> findByStateAndReservationExpiryBefore(SlotState state, LocalDateTime time);
 }

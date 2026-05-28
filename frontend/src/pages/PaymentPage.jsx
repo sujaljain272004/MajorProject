@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { getBooking } from "../services/bookingService";
-import { createOrder, getBookingPayment, verifyPayment } from "../services/paymentService";
+import { createOrder, getBookingPayment, mockPaymentSuccess, verifyPayment } from "../services/paymentService";
 
 function formatDateTime(value) {
   return new Date(value).toLocaleString();
@@ -110,6 +110,20 @@ export default function PaymentPage() {
     }
   };
 
+  const handleMockPayment = async () => {
+    try {
+      setPaying(true);
+      setError("");
+      await mockPaymentSuccess(Number(bookingId));
+      setSuccess("Payment confirmed for local testing.");
+      navigate(`/charging/${bookingId}`);
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to confirm test payment");
+    } finally {
+      setPaying(false);
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner label="Preparing payment..." />;
   }
@@ -158,9 +172,14 @@ export default function PaymentPage() {
         </div>
       </article>
 
-      <button className="primary-button fit-button" disabled={paying || booking.status !== "RESERVED"} onClick={handlePayment}>
-        {paying ? "Launching Razorpay..." : booking.status === "RESERVED" ? "Pay with Razorpay" : "Payment Closed"}
-      </button>
+      <div className="row-actions">
+        <button className="primary-button fit-button" disabled={paying || booking.status !== "RESERVED"} onClick={handlePayment}>
+          {paying ? "Launching Razorpay..." : booking.status === "RESERVED" ? "Pay with Razorpay" : "Payment Closed"}
+        </button>
+        <button className="secondary-button fit-button" disabled={paying || booking.status !== "RESERVED"} onClick={handleMockPayment}>
+          Confirm Test Payment
+        </button>
+      </div>
     </section>
   );
 }

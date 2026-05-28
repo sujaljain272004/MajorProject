@@ -4,6 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./hooks/useAuth";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import BookingPage from "./pages/BookingPage";
+import ChargingLifecyclePage from "./pages/ChargingLifecyclePage";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
 import PaymentPage from "./pages/PaymentPage";
@@ -59,6 +60,14 @@ export default function App() {
             element={(
               <ProtectedRoute role="DRIVER">
                 <UserBookingsPage />
+              </ProtectedRoute>
+            )}
+          />
+          <Route
+            path="/charging/:bookingId"
+            element={(
+              <ProtectedRoute role="DRIVER">
+                <ChargingLifecyclePage />
               </ProtectedRoute>
             )}
           />
