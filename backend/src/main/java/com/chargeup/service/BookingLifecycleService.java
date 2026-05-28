@@ -30,14 +30,27 @@ public class BookingLifecycleService {
     @Transactional
     public void releaseExpiredBookings() {
         LocalDateTime now = LocalDateTime.now();
-        bookingRepository.findExpiredReservations(now).forEach(booking -> cancelAndRelease(booking, SlotState.AVAILABLE));
-        bookingRepository.findMissedArrivals(now).forEach(booking -> cancelAndRelease(booking, SlotState.AVAILABLE));
+        bookingRepository.findExpiredReservations(now).forEach(this::expireAndRelease);
+        bookingRepository.findMissedArrivals(now).forEach(this::expireAndRelease);
+
+        // Auto release expired slot reservations
+        slotRepository.findByStateAndReservationExpiryBefore(SlotState.RESERVED, now)
+            .forEach(this::releaseSlot);
     }
 
-    private void cancelAndRelease(com.chargeup.entity.Booking booking, SlotState releasedState) {
-        booking.setStatus(BookingStatus.CANCELLED);
-        booking.getSlot().setState(releasedState);
-        booking.getSlot().setAvailable(releasedState == SlotState.AVAILABLE);
+    private void releaseSlot(com.chargeup.entity.Slot slot) {
+        slot.setState(SlotState.AVAILABLE);
+        slot.setAvailable(true);
+        slot.setReservedBy(null);
+        slot.setReservationExpiry(null);
+        slotRepository.save(slot);
+        slotBroadcastService.publishStationSlots(slot.getStation().getId());
+    }
+
+    private void expireAndRelease(com.chargeup.entity.Booking booking) {
+        booking.setStatus(BookingStatus.EXPIRED);
+        booking.getSlot().setState(SlotState.AVAILABLE);
+        booking.getSlot().setAvailable(true);
         slotRepository.save(booking.getSlot());
         bookingRepository.save(booking);
         slotBroadcastService.publishStationSlots(booking.getSlot().getStation().getId());

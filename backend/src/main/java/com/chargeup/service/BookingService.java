@@ -75,7 +75,7 @@ public class BookingService {
         if (bookingRepository.existsByUserIdAndSlotIdAndStatusIn(
             user.getId(),
             slot.getId(),
-            List.of(BookingStatus.RESERVED, BookingStatus.BOOKED, BookingStatus.CHARGING)
+            List.of(BookingStatus.RESERVED, BookingStatus.BOOKED, BookingStatus.ARRIVED, BookingStatus.CHARGING)
         )) {
             throw new BadRequestException("You already have an active booking for this slot");
         }
@@ -102,7 +102,7 @@ public class BookingService {
     public BookingResponse cancelBooking(Long bookingId) {
         var booking = getOwnedBookingEntity(bookingId);
 
-        if (booking.getStatus() == BookingStatus.CANCELLED) {
+        if (List.of(BookingStatus.CANCELLED, BookingStatus.EXPIRED, BookingStatus.COMPLETED).contains(booking.getStatus())) {
             throw new BadRequestException("Booking is already cancelled");
         }
 

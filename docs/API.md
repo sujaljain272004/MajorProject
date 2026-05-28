@@ -76,7 +76,7 @@ Owner-only create station.
 }
 ```
 
-New and materially edited stations become `PENDING` until admin verification.
+Production deployments can keep stations `PENDING` until admin verification. Local development currently auto-verifies owner-created stations with `app.station.auto-verify-owner-created=true`.
 
 ### POST `/stations/{stationId}/photos`
 Owner-only multipart station photo upload. Use `file` with JPEG, PNG, or WebP up to 5MB.
@@ -170,14 +170,68 @@ Verify Razorpay signature and confirm booking payment.
 ### GET `/payments/booking/{bookingId}`
 Get payment state for a booking.
 
+### POST `/payments/booking/{bookingId}/mock-success`
+Local development endpoint that marks a reserved booking as paid and moves it to `BOOKED`.
+
+## Charging Lifecycle
+
+State flow:
+```text
+AVAILABLE -> RESERVED -> BOOKED -> ARRIVED -> CHARGING -> COMPLETED
+```
+
+Failure/terminal states:
+- `CANCELLED`
+- `EXPIRED`
+- `FAILED`
+
+### GET `/lifecycle/bookings/{bookingId}`
+Get the driver/owner lifecycle view for one booking, including QR eligibility, charging session progress, and invoice when generated.
+
+### GET `/lifecycle/bookings/{bookingId}/qr`
+Owner-only. Returns the physical station QR payload for a paid booking.
+
+### POST `/lifecycle/checkins`
+Driver QR check-in.
+```json
+{
+  "bookingId": 1,
+  "qrCode": "CHARGEUP:1:5:1"
+}
+```
+
+Validation:
+- booking must exist
+- QR must match booking, slot, and station
+- booking must be `BOOKED`
+- driver must be within the check-in window
+- duplicate verified scans are rejected
+
+### POST `/lifecycle/bookings/{bookingId}/start`
+Start simulated charging after successful QR check-in. Moves `ARRIVED -> CHARGING`.
+
+### POST `/lifecycle/bookings/{bookingId}/stop`
+Stop charging, calculate energy/duration/overtime, generate invoice, and release the slot. Moves `CHARGING -> COMPLETED`.
+
+### POST `/lifecycle/bookings/{bookingId}/extension`
+Driver requests overtime/extension during charging.
+
+### POST `/lifecycle/bookings/{bookingId}/extension/decision?approved=true`
+Owner approves or rejects an extension request.
+
+### GET `/lifecycle/owner/sessions`
+Owner live charging sessions across owned stations.
+
 ## WebSocket
 
 Endpoint: `http://localhost:8080/ws`
 
 Topic subscription:
 - `/topic/stations/{stationId}/slots`
+- `/topic/bookings/{bookingId}`
+- `/topic/owners/{ownerId}/operations`
 
 Payload:
 - Array of slot DTOs for the station.
-- Slot state is one of `AVAILABLE`, `RESERVED`, `BOOKED`, `CHARGING`, `COMPLETED`, `CANCELLED`.
+- Slot state is one of `AVAILABLE`, `RESERVED`, `BOOKED`, `ARRIVED`, `CHARGING`, `COMPLETED`, `CANCELLED`, `EXPIRED`, `FAILED`.
 - Frontend uses this to disable unavailable slots instantly.

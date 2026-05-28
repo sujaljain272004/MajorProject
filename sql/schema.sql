@@ -73,6 +73,8 @@ CREATE TABLE IF NOT EXISTS slots (
     available BIT NOT NULL,
     state VARCHAR(30) NOT NULL DEFAULT 'AVAILABLE',
     version BIGINT DEFAULT 0,
+    reserved_by BIGINT,
+    reservation_expiry DATETIME,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     CONSTRAINT fk_slot_station FOREIGN KEY (station_id) REFERENCES stations(id)
@@ -82,8 +84,17 @@ CREATE TABLE IF NOT EXISTS bookings (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     slot_id BIGINT NOT NULL,
+    vehicle_id BIGINT,
     status VARCHAR(30) NOT NULL,
     payment_id VARCHAR(255),
+    actual_arrival_time DATETIME,
+    charging_start_time DATETIME,
+    charging_end_time DATETIME,
+    total_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    overtime_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    qr_checkin_verified BIT NOT NULL DEFAULT 0,
+    extension_requested BIT,
+    extension_approved BIT,
     expires_at DATETIME NOT NULL,
     arrival_grace_until DATETIME NOT NULL,
     created_at DATETIME NOT NULL,
@@ -103,6 +114,40 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     CONSTRAINT fk_payment_booking FOREIGN KEY (booking_id) REFERENCES bookings(id)
+);
+
+CREATE TABLE IF NOT EXISTS charging_sessions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    booking_id BIGINT NOT NULL UNIQUE,
+    charger_id BIGINT,
+    start_time DATETIME NOT NULL,
+    end_time DATETIME,
+    energy_consumed DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    charging_duration_minutes BIGINT NOT NULL DEFAULT 0,
+    charging_status VARCHAR(30) NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_charging_session_booking FOREIGN KEY (booking_id) REFERENCES bookings(id)
+);
+
+CREATE TABLE IF NOT EXISTS qr_checkins (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    booking_id BIGINT NOT NULL,
+    qr_code VARCHAR(255) NOT NULL,
+    scanned_at DATETIME NOT NULL,
+    verification_status VARCHAR(30) NOT NULL,
+    CONSTRAINT fk_qr_checkin_booking FOREIGN KEY (booking_id) REFERENCES bookings(id)
+);
+
+CREATE TABLE IF NOT EXISTS invoices (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    booking_id BIGINT NOT NULL UNIQUE,
+    amount DECIMAL(10, 2) NOT NULL,
+    gst DECIMAL(10, 2) NOT NULL,
+    energy_used DECIMAL(10, 2) NOT NULL,
+    charging_duration_minutes BIGINT NOT NULL,
+    generated_at DATETIME NOT NULL,
+    CONSTRAINT fk_invoice_booking FOREIGN KEY (booking_id) REFERENCES bookings(id)
 );
 
 CREATE TABLE IF NOT EXISTS reviews (
@@ -140,4 +185,6 @@ CREATE INDEX idx_booking_user ON bookings(user_id);
 CREATE INDEX idx_booking_slot ON bookings(slot_id);
 CREATE INDEX idx_booking_status_expiry ON bookings(status, expires_at);
 CREATE INDEX idx_payment_status ON payments(status);
+CREATE INDEX idx_charging_sessions_status ON charging_sessions(charging_status);
+CREATE INDEX idx_qr_checkins_booking_status ON qr_checkins(booking_id, verification_status);
 CREATE INDEX idx_review_station_created ON reviews(station_id, created_at);

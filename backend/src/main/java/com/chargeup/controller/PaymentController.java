@@ -37,4 +37,9 @@ public class PaymentController {
     public PaymentResponse getBookingPayment(@PathVariable Long bookingId) {
         return paymentService.getBookingPayment(bookingId);
     }
+
+    @PostMapping("/booking/{bookingId}/mock-success")
+    public PaymentResponse mockPaymentSuccess(@PathVariable Long bookingId) {
+        return paymentService.mockPaymentSuccess(bookingId);
+    }
 }

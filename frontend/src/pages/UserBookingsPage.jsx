@@ -84,6 +84,11 @@ export default function UserBookingsPage() {
                         Pay Now
                       </button>
                     )}
+                    {["BOOKED", "ARRIVED", "CHARGING", "COMPLETED"].includes(booking.status) && (
+                      <button className="primary-button" onClick={() => navigate(`/charging/${booking.id}`)}>
+                        Charging Flow
+                      </button>
+                    )}
                     {booking.status !== "CANCELLED" && booking.status !== "COMPLETED" && (
                       <button className="ghost-button" onClick={() => handleCancel(booking.id)}>
                         Cancel

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { getOwnerBookings } from "../services/bookingService";
+import { decideExtension, getBookingQr, getOwnerLiveSessions, stopCharging } from "../services/lifecycleService";
 import { createSlot, deleteSlot, getSlotsByStation, updateSlot } from "../services/slotService";
 import StationPinPreview from "../components/StationPinPreview";
 import {
@@ -46,6 +47,8 @@ function toLocalDateTimeInput(value) {
 export default function AdminDashboardPage() {
   const [dashboard, setDashboard] = useState(null);
   const [ownerBookings, setOwnerBookings] = useState([]);
+  const [liveSessions, setLiveSessions] = useState([]);
+  const [bookingQrCodes, setBookingQrCodes] = useState({});
   const [selectedStationId, setSelectedStationId] = useState(null);
   const [selectedStationSlots, setSelectedStationSlots] = useState([]);
   const [stationForm, setStationForm] = useState(initialStationForm);
@@ -65,8 +68,10 @@ export default function AdminDashboardPage() {
         getOwnerDashboard(),
         getOwnerBookings()
       ]);
+      const sessionData = await getOwnerLiveSessions();
       setDashboard(dashboardData);
       setOwnerBookings(bookingData);
+      setLiveSessions(sessionData);
 
       const nextStationId = preferredStationId || dashboardData.stations[0]?.id || null;
       setSelectedStationId(nextStationId);
@@ -264,6 +269,36 @@ export default function AdminDashboardPage() {
       await loadDashboard(station.id);
     } catch (err) {
       setError(err.response?.data?.message || "Unable to update station status");
+    }
+  };
+
+  const handleShowQr = async (bookingId) => {
+    try {
+      const data = await getBookingQr(bookingId);
+      setBookingQrCodes((current) => ({ ...current, [bookingId]: data.qrCode }));
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to load station QR");
+    }
+  };
+
+  const handleExtensionDecision = async (bookingId, approved) => {
+    try {
+      await decideExtension(bookingId, approved);
+      setSuccess(approved ? "Extension approved." : "Extension rejected.");
+      await loadDashboard();
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to update extension request");
+    }
+  };
+
+  const handleStopCharging = async (bookingId) => {
+    try {
+      await stopCharging(bookingId);
+      setSuccess("Charging stopped and invoice generated.");
+      await loadDashboard();
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to stop charging session");
     }
   };
 
@@ -566,6 +601,32 @@ export default function AdminDashboardPage() {
 
       <section className="detail-panel">
         <div className="section-heading">
+          <h2>Live charging sessions</h2>
+          <span className="badge">{liveSessions.length} active</span>
+        </div>
+        {!liveSessions.length ? (
+          <div className="empty-state">No vehicles are charging right now.</div>
+        ) : (
+          <div className="session-grid">
+            {liveSessions.map((session) => (
+              <article className="session-card" key={session.id}>
+                <strong>{session.stationName}</strong>
+                <span>{session.status}</span>
+                <div className="progress-bar"><span style={{ width: `${session.progressPercent}%` }} /></div>
+                <p>{session.energyConsumed} kWh · {session.durationMinutes} min elapsed</p>
+                <div className="row-actions">
+                  <button className="ghost-button" onClick={() => handleStopCharging(session.bookingId)}>Stop</button>
+                  <button className="secondary-button" onClick={() => handleExtensionDecision(session.bookingId, true)}>Approve extension</button>
+                  <button className="ghost-button" onClick={() => handleExtensionDecision(session.bookingId, false)}>Reject</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="detail-panel">
+        <div className="section-heading">
           <h2>Recent bookings</h2>
           <span className="badge">{ownerBookings.length} total</span>
         </div>
@@ -579,6 +640,7 @@ export default function AdminDashboardPage() {
                 <th>Amount</th>
                 <th>Booking</th>
                 <th>Payment</th>
+                <th>Ops</th>
               </tr>
             </thead>
             <tbody>
@@ -590,6 +652,19 @@ export default function AdminDashboardPage() {
                   <td>INR {booking.amount}</td>
                   <td>{booking.status}</td>
                   <td>{booking.paymentStatus || "NOT_STARTED"}</td>
+                  <td className="table-actions">
+                    {["BOOKED", "ARRIVED"].includes(booking.status) && (
+                      <button className="secondary-button" onClick={() => handleShowQr(booking.id)}>
+                        QR
+                      </button>
+                    )}
+                    {booking.status === "CHARGING" && (
+                      <button className="ghost-button" onClick={() => handleStopCharging(booking.id)}>
+                        Stop
+                      </button>
+                    )}
+                    {bookingQrCodes[booking.id] && <code className="qr-code">{bookingQrCodes[booking.id]}</code>}
+                  </td>
                 </tr>
               ))}
             </tbody>
